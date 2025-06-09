@@ -4,6 +4,7 @@ module tb_mac_module;
     reg [783:0] inputs, weights;
     wire result;
     wire done;
+    reg [391:0] mask;
     
     // Instantiate your mac_module
     mac_module uut (
@@ -11,6 +12,7 @@ module tb_mac_module;
         .rst(rst),
         .inputs(inputs),
         .weights(weights),
+        .mask(mask),
         .result(result),
         .done(done)
     );
@@ -30,6 +32,7 @@ module tb_mac_module;
 
         inputs = 784'b0;
         weights = 784'b0;
+        mask = {392{1'b1}};
         
         
         #20;
@@ -45,7 +48,7 @@ module tb_mac_module;
         #30;
 
         $display("First neuron: result = %b", result);
-        $display("Sum as signed decimal: %d", $signed(uut.sum));
+        $display("Sum as signed decimal: %d", $signed(uut.final_sum));
         assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
         
 
@@ -56,7 +59,7 @@ module tb_mac_module;
         #30;
 
         $display("Second neuron: result = %b", result);
-        $display("Sum as signed decimal: %d", $signed(uut.sum));
+        $display("Sum as signed decimal: %d", $signed(uut.final_sum));
         assert (result == 1'b1) else $error("Expected result = 1, but got result = %b", result);
         
         // Now all bits are 1, so sum is very high
@@ -66,7 +69,7 @@ module tb_mac_module;
         #30;
 
         $display("Third neuron: result = %b", result);
-        $display("Sum as signed decimal: %d", $signed(uut.sum));
+        $display("Sum as signed decimal: %d", $signed(uut.final_sum));
         assert (result == 1'b1) else $error("Expected result = 1, but got result = %b", result);
 
         // Now not all bits are 1, so sum is very low
@@ -76,7 +79,20 @@ module tb_mac_module;
         #30;
 
         $display("Fourth neuron: result = %b", result);
-        $display("Sum as signed decimal: %d", $signed(uut.sum));
+        $display("Sum as signed decimal: %d", $signed(uut.final_sum));
+        assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
+
+
+
+        // Now let's check different mask
+        inputs = {{784{1'b1}}};
+        weights = {{784{1'b0}}};
+        mask = {{388{1'b1}},4'b0000};
+
+        #30;
+
+        $display("Fifth neuron with mask for 4 first bits, result should have 8 less: result = %b", result);
+        $display("Sum as signed decimal: %d", $signed(uut.final_sum));
         assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
 
         

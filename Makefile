@@ -1,6 +1,6 @@
 VERILATOR = verilator
 MODULE = tb_mac_module
-SOURCES = src/mac_module.v src/tb_mac_module.v
+SOURCES = src/mac_module.v src/tb_mac_module.v src/tree_adder.v src/tb_tree_adder.v
 CPP_SRC = sim/sim_main.cpp
 
 all: run
