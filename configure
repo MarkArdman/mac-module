@@ -26,7 +26,7 @@ if len(sys.argv) < 2 or sys.argv[1] not in commands:
 module = commands[sys.argv[1]]
 template = open(cd/"sim/sim_main.cpp.template", "r").read()
 cpp_file = template.format(tb=f"V{module}")
-open(cd/"src/sim_main.cpp", "w").write(cpp_file)
+open(cd/"sim/sim_main.cpp", "w").write(cpp_file)
 
 make_config = {
     "SOURCES": " ".join(sources), 
