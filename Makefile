@@ -11,7 +11,7 @@ run: verilate
 	./obj_dir/V$(MODULE)
 
 waves:
-	gtkwave adder.vcd
+	gtkwave V$(MODULE).vcd
 
 clean:
 	rm -rf obj_dir *.vcd

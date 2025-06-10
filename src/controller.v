@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -20,114 +19,142 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module controller
-#(
-    parameter N_ENTRIES = 64,
-    parameter N_LEN = 8,
-    parameter N_LEN_WIDTH = 3, // clog2 SQRT of N_ENTRIES, we assume square matrix with power of 2 lengths
-    parameter N_ENTRIES_WIDTH = 6
-)(
+#(       
+    parameter HIDDEN_LAYER_FILE = "memfiles/hidden_layer_width.mem",
+    parameter MASK_FILE = "memfiles/mask.mem"
+)
+(
     input clk,
+
     // Reset back to the initial state
     input rst_n,
-    // Enable will begin the controller FSM, which will in turn be indicated by the busy flag
-    // Once busy is enabled, enable does nothing
-    input enable,
-    output busy,
+
+    // Start will begin the computation, which ends when the ready flag is raised
+    input start,
     
-    // Only need to tell the register files where to read from
-    // The outputs will be fed to the MAC module
-    output reg [N_ENTRIES_WIDTH-1:0] addr_a,
-    output reg [N_ENTRIES_WIDTH-1:0] addr_b,
-        
-    // For the output we need to specify where to write, and when the entry is valid (i.e. when the mac computation is done)
-    output reg [N_ENTRIES_WIDTH-1:0] addr_c,
-    output reg we_c,
+    // Raised when the computation has finished
+    // This also means the FSM is in the FINISHED state, and will remain there
+    // until reset or started again
+    output ready,
     
-    output reg rst_n_mac,
-    output reg accumulate_mac
+    // Whether to read from input ROM or the buffer register
+    output input_select,
+
+    // Whether to output layer 1 or hidden layer weights
+    output [8:0] weight_address,
+
+    // Mask for the output of the MAC module
+    output reg [391:0] mask,
+
+    // Reset for buffer register
+    output buffer_reset,
+
+    // Write address for the buffer
+    output [7:0] buffer_address,
+
+    // Write output of MAC to buffer
+    output buffer_write_enable
 );
 
-reg [1:0] state_q, state_d;
+// Initialized through a mem file
+reg [7:0] hidden_layer_width[0:0];
+reg [391:0] mask_hidden_layer[0:0];
 
-reg [N_ENTRIES_WIDTH-1:0] i,j; 
-reg [N_ENTRIES_WIDTH-1:0] addr_c_d;
+ initial begin
+    $readmemb(HIDDEN_LAYER_FILE, hidden_layer_width);
+    $readmemb(MASK_FILE, mask_hidden_layer);
+end
 
-reg rst_n_mac_q;
+localparam OUTPUT_LAYER_WIDTH = 10;
 
-localparam IDLE        = 0,
-           ENTER_MULTIPLY       = 1,
-           MULTIPLYING = 2;
+reg [7:0] layer_countup_q, layer_countup_d;
+reg [8:0] weight_address_q, weight_address_d;
 
-           
-assign busy = state_q != IDLE;
+// Transitions are as follows:
+// IDLE -> LAYER_1 (start)
+// IDLE -> IDLE    (reset)
+// LAYER_1 -> HIDDEN_LAYER ()
+// HIDDEN_LAYER -> FINISHED
+// FINISHED -> IDLE (reset)
+// FINISHED -> LAYER_1 (start)
+typedef enum {
+    IDLE,
+    LAYER_1,
+    HIDDEN_LAYER,
+    FINISHED
+} state_t;
+
+state_t state_q, state_d;
+
+// I'm not too sure about the logic that follows
+// This means that the values change 1 comparison delay after the state change.
+// As long as this is lower than the clk period this should be fine
+// But figuring out 100 parrallel things is giving me a headache 
+
+// The finished state indicates we are ready
+assign ready = state_q == FINISHED;
+
+// Select rom INPUT when in LAYER_1, and buffer input when in HIDDEN_LAYER
+assign input_select = state_q == HIDDEN_LAYER;
+
+// Only write to the buffer address when 
+assign buffer_write_enable = state_q == LAYER_1;
+
+// Only reset the buffer when in an IDLE state 
+// In reality there is no real reason to do this with just a single hidden layer width
+// But if you were switching them through a configuration, you'd have to go through a reset
+assign buffer_reset = state_q == IDLE;
+
+assign buffer_address = layer_countup_q;
+assign weight_address = weight_address_q;
 
 always @(posedge clk, negedge rst_n) begin
     if (!rst_n) begin
         state_q <= IDLE;
-        i <= 0;
-        j <= 0;
-        addr_c <= 0;
+        layer_countup_q <= 0;
+        weight_address_q <= 0;
     end else begin
         state_q <= state_d;
-        i <= addr_a;
-        j <= addr_b;
-        addr_c <= addr_c_d;
+        layer_countup_q <= layer_countup_d;
+        weight_address_q <= weight_address_d;
     end
 end
 
-// (addr_a[N_LEN_WIDTH-1:0] == {N_LEN_WIDTH{1'b1}})
-
 always @(*) begin
     // Just some sensible defaults, in the case that we don't need to do anything e.g. we are idling
-    rst_n_mac = 1;
-    state_d = IDLE;
-    we_c = 0;
-    addr_a = i;
-    addr_b = j;
-    addr_c_d = addr_c;
-    accumulate_mac = 1;
-    
+    state_d = state_q;
+    mask = 392'b0;
+    layer_countup_d = layer_countup_q;
+    weight_address_d = weight_address_q + 1;
+
     case (state_q)
-        // We need this state to allow the MAC to start doing its thing
-        ENTER_MULTIPLY: begin
-            // MAC will now have been reset
-            state_d = MULTIPLYING;
-        end
-        MULTIPLYING: begin
-            state_d = MULTIPLYING;
-            // Check i and j and do stuff
-            
-            // End of row/column
-             if (i[N_LEN_WIDTH-1:0] == {N_LEN_WIDTH{1'b1}}) begin
-                we_c = 1;
-                accumulate_mac = 0;
-                addr_c_d = addr_c + 1;
-                // END of algorithm,go back to idling
-                if (j == N_ENTRIES-1 && i == N_ENTRIES-1) begin
-                    state_d = IDLE;
-                end
-                // Only end of this row, move onto next row and reset columns
-                else if (j == N_ENTRIES-1) begin
-                    addr_a = i + 1;
-                    addr_b = 0;   
-                end
-                // Only end of this column, move on to next column and reset row
-                else begin
-                    addr_a = i - (N_LEN - 1);
-                    addr_b = j - (N_LEN * (N_LEN - 1)) + 1; 
-                end
+        IDLE, FINISHED: begin
+            if (start) begin
+                state_d = LAYER_1;
+                layer_countup_d = 0;
+                weight_address_d = 0;
             end
-            // Not the end of either, advance both by 1
-            else begin
-                addr_a = i + 1;
-                addr_b = j + N_LEN;
-            end           
         end
-        IDLE: begin
-            if (enable) begin
-                state_d = ENTER_MULTIPLY;
-                rst_n_mac = 0;
+
+        // I admit this could have been factored out with a register
+        // But why overcomplicate?
+        LAYER_1: begin
+            if (layer_countup_q == hidden_layer_width[0]) begin
+                state_d = HIDDEN_LAYER;
+                layer_countup_d = 0;
+            end else begin
+                layer_countup_d = layer_countup_q + 1;
             end
+        end
+        
+        HIDDEN_LAYER: begin
+            if (layer_countup_q == OUTPUT_LAYER_WIDTH) begin
+                state_d = FINISHED;
+                layer_countup_d = 0;
+            end else begin
+                layer_countup_d = layer_countup_q + 1;
+            end
+            mask = mask_hidden_layer[0];
         end
     endcase
 end

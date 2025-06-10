@@ -1,8 +1,5 @@
 #!/bin/python3
 
-# MODULE = tb_mac_module
-# SOURCES = src/mac_module.v src/tb_mac_module.v src/tree_adder.v src/tb_tree_adder.v # src/controller.v src/top.v
-
 import sys
 from pathlib import Path
 
@@ -11,10 +8,12 @@ cd = Path(__file__).resolve().parent
 commands = {
     "mac": "tb_mac_module",
     "adder": "tb_tree_adder",
+    "controller": "tb_controller",
 }
 
 sources = list(
-    map(lambda x: str(cd/x), ["src/mac_module.v", "src/tb_mac_module.v", "src/tree_adder.v", "src/tb_tree_adder.v"])
+    map(lambda x: str(cd/x), 
+    ["src/mac_module.v", "src/tb_mac_module.v", "src/tree_adder.v", "src/tb_tree_adder.v", "src/controller.v", "src/tb_controller.v"])
 )
 
 if len(sys.argv) < 2 or sys.argv[1] not in commands:
