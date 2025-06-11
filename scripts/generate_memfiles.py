@@ -12,11 +12,12 @@ models = {
     "pruned": "pruned_37.5.keras"
 }
 
-if len(sys.argv) < 2 or sys.argv[1] not in models:
-    print(f"Usage: python {sys.argv[0]} {{{'|'.join(models.keys())}}}")
+if len(sys.argv) < 3 or sys.argv[1] not in models:
+    print(f"Usage: python {sys.argv[0]} {{{'|'.join(models.keys())}}} test_number")
     sys.exit(-1)
 
-model_keras = cd/".."/"model"/models[sys.argv[1]]
+model_folder = cd/".."/"model"
+model_keras = model_folder/models[sys.argv[1]]
 
 # Keras files are just zip archive, so first we'll unzip them
 model_extract = cd/"extracted"
@@ -48,15 +49,19 @@ parameters.visit(
 memfiles = cd/".."/"memfiles"
 memfiles.mkdir(exist_ok=True)
 
-def binarize_to_memfile(array, path):
-    with open(path, 'w') as f:
-        for i in range(array.shape[0]):
-            # Convert each pixel to binary string of 1 or 0.
-            binary_string = ''.join(['1' if x > 0 else '0' for x in array[i]])
-            f.write(binary_string + '\n')
+def binarize_to_memfile_2d(array, f):
+    for i in range(array.shape[0]):
+        # Convert each pixel to binary string of 1 or 0.
+        binary_string = ''.join(['1' if x > 0 else '0' for x in array[i]])
+        f.write(binary_string + '\n')
+
+def binarize_to_memfile_1d(array, f):
+    # Convert each pixel to binary string of 1 or 0.
+    binary_string = ''.join(['1' if x > 0 else '0' for x in array])
+    f.write(binary_string + '\n')
 
 for name, weight in weights.items():
-    binarize_to_memfile(weight, memfiles/f"{name}.mem")
+    binarize_to_memfile_2d(weight, open(memfiles/f"{name}.mem", "w"))
 
 # Output controller output files: hidden layer count and mask
 hidden_layer_width = weights["first_layer"].shape[0]
@@ -68,6 +73,20 @@ mask_string = ("0" * ((784 - hidden_layer_width)//2)) + ("1" * (hidden_layer_wid
 assert len(mask_string) == 392
 open(memfiles/"mask.mem", "w").write(mask_string)
 
+test_number = int(sys.argv[2])
+test_inputs = np.load(model_folder/"test_inputs.npy")
+binarize_to_memfile_1d(test_inputs[test_number], open(memfiles/"input.mem", "w"))
+
+expected_output = np.load(model_folder/f"{sys.argv[1]}_expected.npy")[test_number]
+
+print(f"Expected output for model {sys.argv[1]} on test input {test_number}: ", end="")
+binarize_to_memfile_1d(expected_output, sys.stdout)
+
+real_output = np.load(model_folder/"correct.npy")[test_number]
+print(f"Correct output: {'0' * real_output + '1' + '0' * (9-real_output)}")
+
 # Clean up
 rmtree(model_extract)
+
+print("Memfiles generated successfully :)")
 
