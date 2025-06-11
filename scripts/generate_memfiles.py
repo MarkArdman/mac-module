@@ -60,18 +60,22 @@ def binarize_to_memfile_1d(array, f):
     binary_string = ''.join(['1' if x > 0 else '0' for x in array])
     f.write(binary_string + '\n')
 
-for name, weight in weights.items():
-    binarize_to_memfile_2d(weight, open(memfiles/f"{name}.mem", "w"))
-
-# Output controller output files: hidden layer count and mask
 hidden_layer_width = weights["first_layer"].shape[0]
 assert hidden_layer_width % 2 == 0
 
+# To share the same weight memory, we pad out the hidden layer to have the same width (784)
+padded_hidden = np.hstack((weights["hidden_layer"], np.zeros((10, 784-hidden_layer_width))))
+# Then we stack them ontop so the state machine can just keep a running sum of which weight row to process next
+full_weights = np.vstack((weights["first_layer"], padded_hidden))
+
+binarize_to_memfile_2d(full_weights, open(memfiles/"weights.mem", "w"))
+
+# Output controller output files: hidden layer count and mask
 open(memfiles/"hidden_layer_width.mem", "w").write(f"{(hidden_layer_width-1):08b}\n")
 
 mask_string = ("0" * ((784 - hidden_layer_width)//2)) + ("1" * (hidden_layer_width//2))
 assert len(mask_string) == 392
-open(memfiles/"mask.mem", "w").write(mask_string)
+open(memfiles/"mask.mem", "w").write(mask_string + "\n")
 
 test_number = int(sys.argv[2])
 test_inputs = np.load(model_folder/"test_inputs.npy")
