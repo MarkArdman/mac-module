@@ -1,5 +1,6 @@
 obj_dir/
 *.gtkw
 *.vcd
+*.mem
 config.mk
 sim/sim_main.cpp
