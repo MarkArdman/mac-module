@@ -12,8 +12,8 @@ models = {
     "pruned": "pruned_37.5.keras"
 }
 
-if len(sys.argv) < 3 or sys.argv[1] not in models:
-    print(f"Usage: python {sys.argv[0]} {{{'|'.join(models.keys())}}} test_number")
+if len(sys.argv) < 2 or sys.argv[1] not in models:
+    print(f"Usage: python {sys.argv[0]} {{{'|'.join(models.keys())}}}")
     sys.exit(-1)
 
 model_folder = cd/".."/"model"
@@ -77,18 +77,17 @@ mask_string = ("0" * ((784 - hidden_layer_width)//2)) + ("1" * (hidden_layer_wid
 assert len(mask_string) == 392
 open(memfiles/"mask.mem", "w").write(mask_string + "\n")
 
-test_number = int(sys.argv[2])
 test_inputs = np.load(model_folder/"test_inputs.npy")
 
-binarize_to_memfile_1d(np.flip(test_inputs[test_number], axis=0), open(memfiles/"input.mem", "w"))
+binarize_to_memfile_2d(np.flip(test_inputs, axis=1), open(memfiles/"inputs.mem", "w"))
 
-expected_output = np.load(model_folder/f"{sys.argv[1]}_expected.npy")[test_number]
 
-print(f"Expected output for model {sys.argv[1]} on test input {test_number}: ", end="")
-binarize_to_memfile_1d(expected_output, sys.stdout)
 
-real_output = np.load(model_folder/"correct.npy")[test_number]
-print(f"Correct output: {real_output}")
+expected_output = np.argmax(np.load(model_folder/f"{sys.argv[1]}_expected.npy"), axis=1)
+# This just converts from regular int to binary string int
+expected_output = np.array([list(map(int, list(f"{x:04b}"))) for x in expected_output])
+
+binarize_to_memfile_2d(expected_output, open(memfiles/"expected.mem", "w"))
 
 # Clean up
 rmtree(model_extract)

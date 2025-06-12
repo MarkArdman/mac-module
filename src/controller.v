@@ -104,6 +104,7 @@ always @(*) begin
     state_d = state_q;
     mask = {392{1'b1}};
     layer_countup_d = layer_countup_q;
+    weight_address_d = weight_address_q;
 
     case (state_q)
         IDLE, FINISHED: begin
@@ -112,7 +113,6 @@ always @(*) begin
                 layer_countup_d = 0;
                 weight_address_d = 0;
             end
-            
         end
 
         // I admit this could have been factored out with a register

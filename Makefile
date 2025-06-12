@@ -5,7 +5,7 @@ include config.mk
 all: run
 
 verilate:
-	$(VERILATOR) -Wall --Wno-fatal --cc --exe --build --trace --timing -j $(shell nproc) $(SOURCES) $(CPP_SRC) --top-module $(MODULE)
+	$(VERILATOR) -Wall --cc --exe --build --trace --timing -j $(shell nproc) $(SOURCES) $(CPP_SRC) --top-module $(MODULE)
 
 run: verilate
 	./obj_dir/V$(MODULE)

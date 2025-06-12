@@ -9,15 +9,12 @@ module buffer #(
     input  wire [DATA_WIDTH-1:0]             in,        // input
     output reg  [DATA_WIDTH*OUTPUT_SIZE-1:0] out_flat   // flat output
 );
-    // synchronous reset
-    always @(posedge clk or posedge rst) begin
-        if (rst)
-            out_flat <= {DATA_WIDTH*OUTPUT_SIZE{1'b0}};
-    end
-
     // write to selected slice
     always @(posedge clk) begin
-        if (enable_in) begin
+        if (rst) begin
+            out_flat <= {DATA_WIDTH*OUTPUT_SIZE{1'b0}};
+        end
+        else if (enable_in) begin
             out_flat[addr*DATA_WIDTH +: DATA_WIDTH] <= in;
         end
     end

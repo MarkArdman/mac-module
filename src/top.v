@@ -1,10 +1,10 @@
 module top
-#(
-    parameter HIDDEN_LAYER_SIZE = 64
-)(
+(
     input  wire        clk,
     input  wire        rst_n,
     input  wire        start,
+
+    input wire [783:0] input_data,
 
     // goes high when the entire hidden‐layer pass is complete
     output wire        ready,
@@ -26,12 +26,10 @@ module top
 
   // roms
   wire [783:0] weight_rom_data;
-  wire [783:0] input_rom_data;
 
   // datapath
   wire [783:0] mac_inputs;
   wire         mac_result;
-  wire         mac_done;
   wire [255:0] buffer_data_flat;
 
   //===========================================================
@@ -45,23 +43,10 @@ module top
     .clk      (clk),
     .rst      (1'b0),
     .addr     (weight_address),
-    .valid    (),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .valid (),
+    /* verilator lint_on PINCONNECTEMPTY */
     .data_out (weight_rom_data)
-  );
-
-  //===========================================================
-  // Instantiate input ROM (only one address: 0)
-  //===========================================================
-  rom #(
-    .DATA_WIDTH (784),
-    .DEPTH      (1),
-    .INIT_FILE  ("memfiles/input.mem")
-  ) input_rom (
-    .clk      (clk),
-    .rst      (1'b0),
-    .addr     (9'd0),
-    .valid    (),
-    .data_out (input_rom_data)
   );
 
   //===========================================================
@@ -70,7 +55,7 @@ module top
   // For hidden‐layer we always need 784‐bit inputs; when selecting
   // buffer_data (256 bits), we zero–pad the high bits [783:256].
   assign mac_inputs = (input_select == 1'b0)
-                      ? input_rom_data
+                      ? input_data
                       : {528'b0, buffer_data_flat};
 
   //===========================================================
@@ -83,7 +68,9 @@ module top
     .weights (weight_rom_data),
     .mask    (mask),
     .result  (mac_result),
-    .done    (mac_done)
+    /* verilator lint_off PINCONNECTEMPTY */
+    .done    ()
+    /* verilator lint_on PINCONNECTEMPTY */
   );
 
   //===========================================================
@@ -126,7 +113,7 @@ module top
   output_block output_blk (
     .buffer_out_flat (buffer_data_flat),
     .recognized_digit(digit),
-    .valid_recognition()
+    .valid_recognition(valid)
   );
 
 endmodule
