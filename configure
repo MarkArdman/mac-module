@@ -9,11 +9,13 @@ commands = {
     "mac": "tb_mac_module",
     "adder": "tb_tree_adder",
     "controller": "tb_controller",
+    "top" : "tb_top"
 }
 
 sources = list(
     map(lambda x: str(cd/x), 
-    ["src/mac_module.v", "src/tb_mac_module.v", "src/tree_adder.v", "src/tb_tree_adder.v", "src/controller.v", "src/tb_controller.v"])
+    ["src/mac_module.v", "src/tb_mac_module.v", "src/tree_adder.v", "src/tb_tree_adder.v", "src/controller.v", "src/tb_controller.v",
+     "src/buffer.v", "src/rom.v", "src/tb_top.v", "src/top.v", "src/output_block.v"])
 )
 
 if len(sys.argv) < 2 or sys.argv[1] not in commands:

@@ -102,7 +102,7 @@ end
 always @(*) begin
     // Just some sensible defaults, in the case that we don't need to do anything e.g. we are idling
     state_d = state_q;
-    mask = 392'b0;
+    mask = {392{1'b1}};
     layer_countup_d = layer_countup_q;
     weight_address_d = weight_address_q + 1;
 
