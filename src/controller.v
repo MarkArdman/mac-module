@@ -104,7 +104,6 @@ always @(*) begin
     state_d = state_q;
     mask = {392{1'b1}};
     layer_countup_d = layer_countup_q;
-    weight_address_d = weight_address_q + 1;
 
     case (state_q)
         IDLE, FINISHED: begin
@@ -113,11 +112,14 @@ always @(*) begin
                 layer_countup_d = 0;
                 weight_address_d = 0;
             end
+            
         end
 
         // I admit this could have been factored out with a register
         // But why overcomplicate?
         LAYER_1: begin
+            weight_address_d = weight_address_q + 1;
+
             if (layer_countup_q == hidden_layer_width[0]) begin
                 state_d = HIDDEN_LAYER;
                 layer_countup_d = 0;
@@ -127,6 +129,8 @@ always @(*) begin
         end
         
         HIDDEN_LAYER: begin
+            weight_address_d = weight_address_q + 1;
+
             if (layer_countup_q == OUTPUT_LAYER_WIDTH) begin
                 state_d = FINISHED;
                 layer_countup_d = 0;
