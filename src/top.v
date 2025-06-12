@@ -9,9 +9,6 @@ module top
     // goes high when the entire hidden‐layer pass is complete
     output wire        ready,
 
-    // pulses whenever mac_module produces a new 1‐bit result
-    output wire        valid,
-
     // stub for eventual classifier; drives 0 until you hook up your decoder
     output wire [3:0]  digit
 );
@@ -31,6 +28,7 @@ module top
   wire [783:0] mac_inputs;
   wire         mac_result;
   wire [255:0] buffer_data_flat;
+  wire [15:0] output_data_flat;
 
   //===========================================================
   // Instantiate weight ROM
@@ -62,15 +60,10 @@ module top
   // Instantiate MAC module
   //===========================================================
   mac_module mac (
-    .clk     (clk),
-    .rst     (1'b0),
     .inputs  (mac_inputs),
     .weights (weight_rom_data),
     .mask    (mask),
-    .result  (mac_result),
-    /* verilator lint_off PINCONNECTEMPTY */
-    .done    ()
-    /* verilator lint_on PINCONNECTEMPTY */
+    .result  (mac_result)
   );
 
   //===========================================================
@@ -86,6 +79,23 @@ module top
     .addr       (buffer_address),
     .in         (mac_result),
     .out_flat   (buffer_data_flat)
+  );
+
+  //===========================================================
+  // Instantiate buffer to collect output results
+  //===========================================================
+  buffer #(
+    .DATA_WIDTH  (1),
+    .OUTPUT_SIZE (16)
+  ) output_register (
+    .clk        (clk),
+    /* verilator lint_off PINCONNECTEMPTY */
+    .rst        (),
+    /* verilator lint_on PINCONNECTEMPTY */
+    .enable_in  (!buffer_write_enable),
+    .addr       (buffer_address[3:0]),
+    .in         (mac_result),
+    .out_flat   (output_data_flat)
   );
 
   //===========================================================
@@ -111,9 +121,8 @@ module top
   // Top‐level outputs
   //===========================================================
   output_block output_blk (
-    .buffer_out_flat (buffer_data_flat),
-    .recognized_digit(digit),
-    .valid_recognition(valid)
+    .buffer_out_flat (output_data_flat),
+    .recognized_digit(digit)
   );
 
 endmodule

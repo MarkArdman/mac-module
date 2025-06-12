@@ -20,9 +20,6 @@ module tb_top;
     .rst_n (rst_n),
     .start (start),
     .ready (ready),
-    /* verilator lint_off PINCONNECTEMPTY */
-    .valid (),
-    /* verilator lint_on PINCONNECTEMPTY */
     .digit (digit),
     .input_data(input_data)
   );
@@ -39,8 +36,8 @@ module tb_top;
 
   initial begin
     // dump waves
-    $dumpfile("Vtb_top.vcd");
-    $dumpvars(0, tb_top);
+    // $dumpfile("Vtb_top.vcd");
+    // $dumpvars(0, tb_top);
 
     $readmemb("memfiles/inputs.mem", test_input_data);
     $readmemb("memfiles/expected.mem", expected_output);
@@ -48,13 +45,17 @@ module tb_top;
     // apply reset
     rst_n = 0;
     start = 0;
-    #20;
+    #10;
     rst_n = 1;
     #10;
 
 
-    for (i = 0; i < 100; i = i + 1) begin
+    for (i = 0; i < 10000; i = i + 1) begin
+      $display("Testing example: %d", i);
+      
       input_data = test_input_data[i];
+
+      #10
 
       // pulse start
       @(posedge clk);

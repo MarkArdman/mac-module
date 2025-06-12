@@ -1,10 +1,8 @@
 module mac_module(
-    input clk, rst,
     input [783:0] inputs,
     input [783:0] weights,
     input [391:0] mask,
-    output reg result,
-    output reg done
+    output reg result
 );
     
     // If it's second layer, set the inputs above 255 to be of certain value
@@ -97,7 +95,8 @@ module mac_module(
     always @(*) begin
         final_sum = sum - 784;
     end
-    assign result = (final_sum > 0) ? 1'b1 : 1'b0;
+
+    assign result = (final_sum > 0) ? 1'b1 : 1'b0; 
 
     // Now sum all of it
     // TODO: we probably will want to improve this later, but first let's see if it's terrible
@@ -112,15 +111,6 @@ module mac_module(
     //         final_sum = final_sum + $signed({{9{activations[j][1]}}, activations[j]});
     //     end 
     // end
-
-    // Give output
-    always @(posedge clk) begin
-        if (rst) begin
-            done <= 0;
-        end else begin
-            done <= 1; // do we need this tho? Chat added it but idk
-        end
-    end
 
 endmodule
 

@@ -32,7 +32,7 @@ module controller
     // Write address for the buffer
     output [7:0] buffer_address,
 
-    // Write output of MAC to buffer
+    // Write output of MAC to buffer, or when 0, write to output buffer
     output buffer_write_enable
 );
 
@@ -76,8 +76,8 @@ assign ready = state_q == FINISHED;
 // Select rom INPUT when in LAYER_1, and buffer input when in HIDDEN_LAYER
 assign input_select = state_q == HIDDEN_LAYER;
 
-// Only write to the buffer address when 
-assign buffer_write_enable = (state_q == LAYER_1 || state_q == HIDDEN_LAYER);
+// Only write to the buffer address when, otherwise write to output buffer
+assign buffer_write_enable = state_q == LAYER_1;
 
 // Only reset the buffer when in an IDLE state 
 // In reality there is no real reason to do this with just a single hidden layer width
