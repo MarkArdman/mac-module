@@ -20,115 +20,114 @@
 
 module top
 #(
-    parameter N_ENTRIES = 64,
-    parameter N_LEN = 8,
-    parameter N_LEN_WIDTH = 3, // clog2 SQRT of N_ENTRIES, we assume square matrix with power of 2 lengths
-    parameter N_ENTRIES_WIDTH = 6
+    parameter HIDDEN_LAYER_SIZE = 64,
 )(
     input clk,
-    // Reset back to the initial state
     input rst_n,
-    // Enable will begin the controller FSM, which will in turn be indicated by the busy flag
-    // Once busy is enabled, enable does nothing
-    input enable,
-    output busy,
-    
-    // Only need to tell the register files where to read from
-    // The outputs will be fed to the MAC module
-    output reg [N_ENTRIES_WIDTH-1:0] addr_a,
-    output reg [N_ENTRIES_WIDTH-1:0] addr_b,
-        
-    // For the output we need to specify where to write, and when the entry is valid (i.e. when the mac computation is done)
-    output reg [N_ENTRIES_WIDTH-1:0] addr_c,
-    output reg we_c,
-    
-    output reg rst_n_mac,
-    output reg accumulate_mac
+    input start,
+   
+    output valid,
+    output ready,
+    output [3:0] digit
 );
 
-reg [1:0] state_q, state_d;
+wire [8:0] weight_rom_address;
+wire [783:0] weight_rom_data;
+wire [783:0] input_rom_data;
 
-reg [N_ENTRIES_WIDTH-1:0] i,j; 
-reg [N_ENTRIES_WIDTH-1:0] addr_c_d;
+wire buffer_reset;
+wire buffer_write_enable;
+wire [7:0] buffer_address;
+wire [255:0] buffer_data;
 
-reg rst_n_mac_q;
+wire [0:0] mac_data;
+wire [783:0] mac_inputs;
+wire [391:0] mask;
 
-localparam IDLE        = 0,
-           ENTER_MULTIPLY       = 1,
-           MULTIPLYING = 2;
+rom #(       
+    parameter DATA_WIDTH = 784,
+    parameter DEPTH      = 266, // This needs to be a verilog setting or something we can edit during configuration
+    parameter INIT_FILE  = "memfiles/weights.mem" // ASCII binary dump: one 784-bit word per line
+) weight_rom (
+    .clk(clk),
+    .rst(0),
+    .addr(weight_rom_address), // address to read from
+    .valid(),
+    .data_out(weight_rom_data)
+);
 
-           
-assign busy = state_q != IDLE;
+rom #(       
+    parameter DATA_WIDTH = 784,
+    parameter DEPTH      = 1,
+    parameter INIT_FILE  = "memfiles/input.mem" // ASCII binary dump: one 784-bit word per line
+) weight_rom (
+    .clk(clk),
+    .rst(0),
+    .addr(0), // address to read from
+    .valid(),
+    .data_out(input_rom_data)
+);
 
-always @(posedge clk, negedge rst_n) begin
-    if (!rst_n) begin
-        state_q <= IDLE;
-        i <= 0;
-        j <= 0;
-        addr_c <= 0;
-    end else begin
-        state_q <= state_d;
-        i <= addr_a;
-        j <= addr_b;
-        addr_c <= addr_c_d;
-    end
-end
+buffer #(
+    parameter DATA_WIDTH  = 1,
+    parameter OUTPUT_SIZE = 256
+) buffer_register (
+    .clk(clk),
+    .rst(buffer_reset),
+    .enable_in(buffer_write_enable), // write enable
+    .addr(buffer_address),      // where to write to
+    .in(mac_output),        // input
+    .out_flat(buffer_data)   // flat output
+);
 
-// (addr_a[N_LEN_WIDTH-1:0] == {N_LEN_WIDTH{1'b1}})
+mac_module mac (
+    .clk
+    .rst(0),
+    .inputs(mac_inputs),
+    .weights(weight_rom_data),
+    .mask(mask),
+    .result(mac_data),
+    .done()
+);
 
-always @(*) begin
-    // Just some sensible defaults, in the case that we don't need to do anything e.g. we are idling
-    rst_n_mac = 1;
-    state_d = IDLE;
-    we_c = 0;
-    addr_a = i;
-    addr_b = j;
-    addr_c_d = addr_c;
-    accumulate_mac = 1;
+module controller
+#(       
+    parameter HIDDEN_LAYER_FILE = "memfiles/hidden_layer_width.mem",
+    parameter MASK_FILE = "memfiles/mask.mem"
+)
+(
+    input clk,
+
+    // Reset back to the initial state
+    input rst_n,
+
+    // Start will begin the computation, which ends when the ready flag is raised
+    input start,
     
-    case (state_q)
-        // We need this state to allow the MAC to start doing its thing
-        ENTER_MULTIPLY: begin
-            // MAC will now have been reset
-            state_d = MULTIPLYING;
-        end
-        MULTIPLYING: begin
-            state_d = MULTIPLYING;
-            // Check i and j and do stuff
-            
-            // End of row/column
-             if (i[N_LEN_WIDTH-1:0] == {N_LEN_WIDTH{1'b1}}) begin
-                we_c = 1;
-                accumulate_mac = 0;
-                addr_c_d = addr_c + 1;
-                // END of algorithm,go back to idling
-                if (j == N_ENTRIES-1 && i == N_ENTRIES-1) begin
-                    state_d = IDLE;
-                end
-                // Only end of this row, move onto next row and reset columns
-                else if (j == N_ENTRIES-1) begin
-                    addr_a = i + 1;
-                    addr_b = 0;   
-                end
-                // Only end of this column, move on to next column and reset row
-                else begin
-                    addr_a = i - (N_LEN - 1);
-                    addr_b = j - (N_LEN * (N_LEN - 1)) + 1; 
-                end
-            end
-            // Not the end of either, advance both by 1
-            else begin
-                addr_a = i + 1;
-                addr_b = j + N_LEN;
-            end           
-        end
-        IDLE: begin
-            if (enable) begin
-                state_d = ENTER_MULTIPLY;
-                rst_n_mac = 0;
-            end
-        end
-    endcase
-end
+    // Raised when the computation has finished
+    // This also means the FSM is in the FINISHED state, and will remain there
+    // until reset or started again
+    output ready,
+    
+    // Whether to read from input ROM or the buffer register
+    output input_select,
+
+    // Whether to output layer 1 or hidden layer weights
+    output [8:0] weight_address,
+
+    // Mask for the output of the MAC module
+    output reg [391:0] mask,
+
+    // Reset for buffer register
+    output buffer_reset,
+
+    // Write address for the buffer
+    output [7:0] buffer_address,
+
+    // Write output of MAC to buffer
+    output buffer_write_enable
+);
+
+
 
 endmodule
