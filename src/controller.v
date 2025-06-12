@@ -1,27 +1,7 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 05/12/2025 04:53:57 PM
-// Design Name: 
-// Module Name: controller
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 module controller
 #(       
-    parameter HIDDEN_LAYER_FILE = "memfiles/hidden_layer_width.mem",
-    parameter MASK_FILE = "memfiles/mask.mem"
+    parameter HIDDEN_LAYER_FILE = "hidden_layer_width.mem",
+    parameter MASK_FILE = "mask.mem"
 )
 (
     input clk,
@@ -77,14 +57,13 @@ reg [8:0] weight_address_q, weight_address_d;
 // HIDDEN_LAYER -> FINISHED
 // FINISHED -> IDLE (reset)
 // FINISHED -> LAYER_1 (start)
-typedef enum {
-    IDLE,
-    LAYER_1,
-    HIDDEN_LAYER,
-    FINISHED
-} state_t;
+  localparam [1:0]
+    IDLE         = 2'd0,
+    LAYER_1      = 2'd1,
+    HIDDEN_LAYER = 2'd2,
+    FINISHED     = 2'd3;
 
-state_t state_q, state_d;
+ reg [1:0] state_q, state_d;
 
 // I'm not too sure about the logic that follows
 // This means that the values change 1 comparison delay after the state change.

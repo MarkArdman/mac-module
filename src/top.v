@@ -1,133 +1,132 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 05/12/2025 04:53:57 PM
-// Design Name: 
-// Module Name: controller
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 module top
 #(
-    parameter HIDDEN_LAYER_SIZE = 64,
+    parameter HIDDEN_LAYER_SIZE = 64
 )(
-    input clk,
-    input rst_n,
-    input start,
-   
-    output valid,
-    output ready,
-    output [3:0] digit
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        start,
+
+    // goes high when the entire hidden‐layer pass is complete
+    output wire        ready,
+
+    // pulses whenever mac_module produces a new 1‐bit result
+    output wire        valid,
+
+    // stub for eventual classifier; drives 0 until you hook up your decoder
+    output wire [3:0]  digit
 );
 
-wire [8:0] weight_rom_address;
-wire [783:0] weight_rom_data;
-wire [783:0] input_rom_data;
+  // Controller signals
+  wire        input_select;        // 0 = use input_rom_data, 1 = use buffer_data
+  wire [8:0]  weight_address;
+  wire [391:0] mask;
+  wire        buffer_reset;
+  wire        buffer_write_enable;
+  wire [7:0]  buffer_address;
 
-wire buffer_reset;
-wire buffer_write_enable;
-wire [7:0] buffer_address;
-wire [255:0] buffer_data;
+  // roms
+  wire [783:0] weight_rom_data;
+  wire [783:0] input_rom_data;
 
-wire [0:0] mac_data;
-wire [783:0] mac_inputs;
-wire [391:0] mask;
+  // datapath
+  wire [783:0] mac_inputs;
+  wire         mac_result;
+  wire         mac_done;
+  wire [255:0] buffer_data_flat;
 
-rom #(       
-    parameter DATA_WIDTH = 784,
-    parameter DEPTH      = 266, // This needs to be a verilog setting or something we can edit during configuration
-    parameter INIT_FILE  = "memfiles/weights.mem" // ASCII binary dump: one 784-bit word per line
-) weight_rom (
-    .clk(clk),
-    .rst(0),
-    .addr(weight_rom_address), // address to read from
-    .valid(),
-    .data_out(weight_rom_data)
-);
+  //===========================================================
+  // Instantiate weight ROM
+  //===========================================================
+  rom #(
+    .DATA_WIDTH (784),
+    .DEPTH      (266),
+    .INIT_FILE  ("weights.mem")
+  ) weight_rom (
+    .clk      (clk),
+    .rst      (1'b0),
+    .addr     (weight_address),
+    .valid    (),
+    .data_out (weight_rom_data)
+  );
 
-rom #(       
-    parameter DATA_WIDTH = 784,
-    parameter DEPTH      = 1,
-    parameter INIT_FILE  = "memfiles/input.mem" // ASCII binary dump: one 784-bit word per line
-) weight_rom (
-    .clk(clk),
-    .rst(0),
-    .addr(0), // address to read from
-    .valid(),
-    .data_out(input_rom_data)
-);
+  //===========================================================
+  // Instantiate input ROM (only one address: 0)
+  //===========================================================
+  rom #(
+    .DATA_WIDTH (784),
+    .DEPTH      (1),
+    .INIT_FILE  ("input.mem")
+  ) input_rom (
+    .clk      (clk),
+    .rst      (1'b0),
+    .addr     (9'd0),
+    .valid    (),
+    .data_out (input_rom_data)
+  );
 
-buffer #(
-    parameter DATA_WIDTH  = 1,
-    parameter OUTPUT_SIZE = 256
-) buffer_register (
-    .clk(clk),
-    .rst(buffer_reset),
-    .enable_in(buffer_write_enable), // write enable
-    .addr(buffer_address),      // where to write to
-    .in(mac_output),        // input
-    .out_flat(buffer_data)   // flat output
-);
+  //===========================================================
+  // multiplexer: select between raw input or buffered activations
+  //===========================================================
+  // For hidden‐layer we always need 784‐bit inputs; when selecting
+  // buffer_data (256 bits), we zero–pad the high bits [783:256].
+  assign mac_inputs = (input_select == 1'b0)
+                      ? input_rom_data
+                      : {528'b0, buffer_data_flat};
 
-mac_module mac (
-    .clk
-    .rst(0),
-    .inputs(mac_inputs),
-    .weights(weight_rom_data),
-    .mask(mask),
-    .result(mac_data),
-    .done()
-);
+  //===========================================================
+  // Instantiate MAC module
+  //===========================================================
+  mac_module mac (
+    .clk     (clk),
+    .rst     (1'b0),
+    .inputs  (mac_inputs),
+    .weights (weight_rom_data),
+    .mask    (mask),
+    .result  (mac_result),
+    .done    (mac_done)
+  );
 
-module controller
-#(       
-    parameter HIDDEN_LAYER_FILE = "memfiles/hidden_layer_width.mem",
-    parameter MASK_FILE = "memfiles/mask.mem"
-)
-(
-    input clk,
+  //===========================================================
+  // Instantiate buffer to collect MAC results
+  //===========================================================
+  buffer #(
+    .DATA_WIDTH  (1),
+    .OUTPUT_SIZE (256)
+  ) buffer_register (
+    .clk        (clk),
+    .rst        (buffer_reset),
+    .enable_in  (buffer_write_enable),
+    .addr       (buffer_address),
+    .in         (mac_result),
+    .out_flat   (buffer_data_flat)
+  );
 
-    // Reset back to the initial state
-    input rst_n,
+  //===========================================================
+  // Instantiate controller FSM
+  //===========================================================
+  controller #(
+    .HIDDEN_LAYER_FILE("hidden_layer_width.mem"),
+    .MASK_FILE        ("mask.mem")
+  ) ctrl (
+    .clk                  (clk),
+    .rst_n                (rst_n),
+    .start                (start),
+    .ready                (ready),
+    .input_select         (input_select),
+    .weight_address       (weight_address),
+    .mask                 (mask),
+    .buffer_reset         (buffer_reset),
+    .buffer_address       (buffer_address),
+    .buffer_write_enable  (buffer_write_enable)
+  );
 
-    // Start will begin the computation, which ends when the ready flag is raised
-    input start,
-    
-    // Raised when the computation has finished
-    // This also means the FSM is in the FINISHED state, and will remain there
-    // until reset or started again
-    output ready,
-    
-    // Whether to read from input ROM or the buffer register
-    output input_select,
-
-    // Whether to output layer 1 or hidden layer weights
-    output [8:0] weight_address,
-
-    // Mask for the output of the MAC module
-    output reg [391:0] mask,
-
-    // Reset for buffer register
-    output buffer_reset,
-
-    // Write address for the buffer
-    output [7:0] buffer_address,
-
-    // Write output of MAC to buffer
-    output buffer_write_enable
-);
-
-
+  //===========================================================
+  // Top‐level outputs
+  //===========================================================
+  output_block output_blk (
+    .buffer_out_flat (buffer_data_flat),
+    .recognized_digit(digit),
+    .valid_recognition(valid)
+  );
 
 endmodule

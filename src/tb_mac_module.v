@@ -49,8 +49,8 @@ module tb_mac_module;
 
         $display("First neuron: result = %b", result);
         $display("Sum as signed decimal: %d", $signed(uut.final_sum));
-        assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
-        
+        if (result !== 1'b0)
+            $error("Expected result = 0, but got %b", result);        
 
         // We flip one bit, sum becomes 0 and we get 1
         inputs = {{390{1'b0}}, {390{1'b1}}, 4'b1100};
@@ -60,7 +60,8 @@ module tb_mac_module;
 
         $display("Second neuron: result = %b", result);
         $display("Sum as signed decimal: %d", $signed(uut.final_sum));
-        assert (result == 1'b1) else $error("Expected result = 1, but got result = %b", result);
+        if (result !== 1'b1)
+            $error("Expected result = 1, but got result = %b", result);
         
         // Now all bits are 1, so sum is very high
         inputs = {{784{1'b0}}};
@@ -70,7 +71,8 @@ module tb_mac_module;
 
         $display("Third neuron: result = %b", result);
         $display("Sum as signed decimal: %d", $signed(uut.final_sum));
-        assert (result == 1'b1) else $error("Expected result = 1, but got result = %b", result);
+        if (result !== 1'b1)
+            $error("Expected result = 1, but got result = %b", result);
 
         // Now not all bits are 1, so sum is very low
         inputs = {{784{1'b1}}};
@@ -80,7 +82,8 @@ module tb_mac_module;
 
         $display("Fourth neuron: result = %b", result);
         $display("Sum as signed decimal: %d", $signed(uut.final_sum));
-        assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
+        if (result !== 1'b0)
+            $error("Expected result = 0, but got result = %b", result);
 
 
 
@@ -93,7 +96,8 @@ module tb_mac_module;
 
         $display("Fifth neuron with mask for 4 first bits, result should have 8 less: result = %b", result);
         $display("Sum as signed decimal: %d", $signed(uut.final_sum));
-        assert (result == 1'b0) else $error("Expected result = 0, but got result = %b", result);
+        if (result !== 1'b0)
+            $error("Expected result = 0, but got result = %b", result);
 
         
         $finish;
