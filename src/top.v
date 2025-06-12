@@ -126,7 +126,7 @@ module top
   output_block output_blk (
     .buffer_out_flat (buffer_data_flat),
     .recognized_digit(digit),
-    .valid_recognition(valid)
+    .valid_recognition()
   );
 
 endmodule
