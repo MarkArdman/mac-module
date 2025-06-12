@@ -77,7 +77,7 @@ assign ready = state_q == FINISHED;
 assign input_select = state_q == HIDDEN_LAYER;
 
 // Only write to the buffer address when 
-assign buffer_write_enable = state_q == LAYER_1;
+assign buffer_write_enable = (state_q == LAYER_1 || state_q == HIDDEN_LAYER);
 
 // Only reset the buffer when in an IDLE state 
 // In reality there is no real reason to do this with just a single hidden layer width

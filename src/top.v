@@ -40,7 +40,7 @@ module top
   rom #(
     .DATA_WIDTH (784),
     .DEPTH      (266),
-    .INIT_FILE  ("weights.mem")
+    .INIT_FILE  ("memfiles/weights.mem")
   ) weight_rom (
     .clk      (clk),
     .rst      (1'b0),
@@ -55,7 +55,7 @@ module top
   rom #(
     .DATA_WIDTH (784),
     .DEPTH      (1),
-    .INIT_FILE  ("input.mem")
+    .INIT_FILE  ("memfiles/input.mem")
   ) input_rom (
     .clk      (clk),
     .rst      (1'b0),
@@ -105,8 +105,8 @@ module top
   // Instantiate controller FSM
   //===========================================================
   controller #(
-    .HIDDEN_LAYER_FILE("hidden_layer_width.mem"),
-    .MASK_FILE        ("mask.mem")
+    .HIDDEN_LAYER_FILE("memfiles/hidden_layer_width.mem"),
+    .MASK_FILE        ("memfiles/mask.mem")
   ) ctrl (
     .clk                  (clk),
     .rst_n                (rst_n),

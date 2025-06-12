@@ -68,7 +68,7 @@ padded_hidden = np.hstack((weights["hidden_layer"], np.zeros((10, 784-hidden_lay
 # Then we stack them ontop so the state machine can just keep a running sum of which weight row to process next
 full_weights = np.vstack((weights["first_layer"], padded_hidden))
 
-binarize_to_memfile_2d(full_weights, open(memfiles/"weights.mem", "w"))
+binarize_to_memfile_2d(np.flip(full_weights, axis=1), open(memfiles/"weights.mem", "w"))
 
 # Output controller output files: hidden layer count and mask
 open(memfiles/"hidden_layer_width.mem", "w").write(f"{(hidden_layer_width-1):08b}\n")
@@ -79,7 +79,8 @@ open(memfiles/"mask.mem", "w").write(mask_string + "\n")
 
 test_number = int(sys.argv[2])
 test_inputs = np.load(model_folder/"test_inputs.npy")
-binarize_to_memfile_1d(test_inputs[test_number], open(memfiles/"input.mem", "w"))
+
+binarize_to_memfile_1d(np.flip(test_inputs[test_number], axis=0), open(memfiles/"input.mem", "w"))
 
 expected_output = np.load(model_folder/f"{sys.argv[1]}_expected.npy")[test_number]
 
@@ -87,7 +88,7 @@ print(f"Expected output for model {sys.argv[1]} on test input {test_number}: ", 
 binarize_to_memfile_1d(expected_output, sys.stdout)
 
 real_output = np.load(model_folder/"correct.npy")[test_number]
-print(f"Correct output: {'0' * real_output + '1' + '0' * (9-real_output)}")
+print(f"Correct output: {real_output}")
 
 # Clean up
 rmtree(model_extract)

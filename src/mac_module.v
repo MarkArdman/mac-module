@@ -97,6 +97,7 @@ module mac_module(
     always @(*) begin
         final_sum = sum - 784;
     end
+    assign result = (final_sum > 0) ? 1'b1 : 1'b0;
 
     // Now sum all of it
     // TODO: we probably will want to improve this later, but first let's see if it's terrible
@@ -115,10 +116,8 @@ module mac_module(
     // Give output
     always @(posedge clk) begin
         if (rst) begin
-            result <= 0;
             done <= 0;
         end else begin
-            result <= (final_sum >= 0) ? 1'b1 : 1'b0; 
             done <= 1; // do we need this tho? Chat added it but idk
         end
     end

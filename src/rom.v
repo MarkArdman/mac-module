@@ -13,6 +13,8 @@ module rom #(
     // declare memory array
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
+    assign data_out = mem[addr];
+
     // initialize from hex file, each line holds one 784-bit value
     initial begin
         $readmemb(INIT_FILE, mem);
@@ -22,10 +24,8 @@ module rom #(
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             valid    <= 1'b0;
-            data_out <= {DATA_WIDTH{1'b0}};
         end else begin
             valid    <= 1'b1;
-            data_out <= mem[addr];
         end
     end
 
