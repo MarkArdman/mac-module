@@ -1,0 +1,42 @@
+#!/bin/python3
+
+import sys
+from pathlib import Path
+
+cd = Path(__file__).resolve().parent
+
+commands = {
+    "mac": "tb_mac_module",
+    "adder": "tb_tree_adder",
+    "controller": "tb_controller",
+    "top" : "tb_top"
+}
+
+sources = list(
+    map(lambda x: str(cd/x), 
+    ["src/mac_module.v", "src/tb_mac_module.v", "src/tree_adder.v", "src/tb_tree_adder.v", "src/controller.v", "src/tb_controller.v",
+     "src/buffer.v", "src/rom.v", "src/tb_top.v", "src/top.v", "src/output_block.v"])
+)
+
+if len(sys.argv) < 2 or sys.argv[1] not in commands:
+    print("Usage: ./configure {{{}}}".format(
+        "|".join(list(commands.keys()))
+    ))
+    sys.exit(1)
+
+module = commands[sys.argv[1]]
+template = open(cd/"sim/sim_main.cpp.template", "r").read()
+cpp_file = template.format(tb=f"V{module}")
+open(cd/"sim/sim_main.cpp", "w").write(cpp_file)
+
+make_config = {
+    "SOURCES": " ".join(sources), 
+    "MODULE": module,
+    "CPP_SRC": cd/"sim/sim_main.cpp",
+}
+
+open(cd/"config.mk", "w").write("\n".join(f"{k} = {v}" for k,v in make_config.items()))
+
+
+
+

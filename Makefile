@@ -1,7 +1,6 @@
 VERILATOR = verilator
-MODULE = tb_mac_module
-SOURCES = src/mac_module.v src/tb_mac_module.v src/tree_adder.v src/tb_tree_adder.v
-CPP_SRC = sim/sim_main.cpp
+
+include config.mk
 
 all: run
 
@@ -12,7 +11,7 @@ run: verilate
 	./obj_dir/V$(MODULE)
 
 waves:
-	gtkwave adder.vcd
+	gtkwave V$(MODULE).vcd
 
 clean:
 	rm -rf obj_dir *.vcd
